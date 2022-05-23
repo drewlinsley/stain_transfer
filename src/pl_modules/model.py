@@ -107,7 +107,7 @@ class MyModel(pl.LightningModule):
 
             channel_loss = cl0
             loss = cl0
-            p0 = p0.detach().cpu()
+            p0 = p0.detach()  # .cpu()
 
         return {
             "channel_logits_0": p0,
@@ -156,10 +156,10 @@ class MyModel(pl.LightningModule):
         y_channels = out["y_channels"]
         y_channels_shape = y_channels.shape
         mean_loss = out["loss"].mean()
-        self.val_channel_accuracy(arg_channel_act.float(), y_channels.int())
+        # self.val_channel_accuracy(channel_act.float(), y_channels.int())
         self.log_dict(
             {
-                "val_channel_acc": self.val_channel_accuracy,
+                # "val_channel_acc": self.val_channel_accuracy,
                 "val_loss": mean_loss.item(),
             },
         )
@@ -183,11 +183,11 @@ class MyModel(pl.LightningModule):
 
         y_channels = out["y_channels"]
         y_channels_shape = y_channels.shape
-        self.test_channel_accuracy(arg_channel_act.float(), y_channels.int())
+        # self.test_channel_accuracy(arg_channel_act.float(), y_channels.int())
         mean_loss = out["loss"].mean()
         self.log_dict(
             {
-                "test_channel_acc": self.test_channel_accuracy,
+                # "test_channel_acc": self.test_channel_accuracy,
                 "test_loss": mean_loss,
             },
         )

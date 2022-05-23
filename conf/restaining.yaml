@@ -18,15 +18,15 @@ data:
         train:
           _target_: src.pl_data.dataset.restainings
           train: True
-          path: "/media/data_cifs/projects/prj_connectomics/restaining_train.pkl"  # "/home/drew/dropbox_symlink/GEDInls/"
+          path: "/media/data_cifs/projects/prj_connectomics/restaining_train.npz"  # "/home/drew/dropbox_symlink/GEDInls/"
         val:
           _target_: src.pl_data.dataset.restainings
           train: False
-          path: "/media/data_cifs/projects/prj_connectomics/restaining_test.pkl"  # "/home/drew/dropbox_symlink/GEDInls/"
+          path: "/media/data_cifs/projects/prj_connectomics/restaining_test.npz"  # "/home/drew/dropbox_symlink/GEDInls/"
         test:
           _target_: src.pl_data.dataset.restainings
           train: False
-          path: "/media/data_cifs/projects/prj_connectomics/restaining_test.pkl"  # "/home/drew/dropbox_symlink/GEDInls/"
+          path: "/media/data_cifs/projects/prj_connectomics/restaining_test.npz"  # "/home/drew/dropbox_symlink/GEDInls/"
     num_workers:
       train: 16
       val: 16
@@ -107,7 +107,7 @@ train:
   ckpt: False  # load pretrained weights
   pl_trainer:
     fast_dev_run: False # Enable this for debug purposes
-    gpus: 4
+    gpus: 1  # 4
     precision: 32
     max_steps: 2000000
     # accumulate_grad_batches: 8

@@ -167,14 +167,14 @@ class restainings(Dataset):
         # List all the files
         print("Globbing files for COR14, this may take a while...")
         # self.data = np.load(self.path)
-        with open(self.path, 'rb') as handle:
-            self.data = pickle.load(handle)
+
+        self.data = np.load(self.path)  # , allow_pickle=True)
 
         self.images = self.data["images"]
-        self.labels = self.data["labels"]
-        self.image_channels = self.data["image_channels"]
-        self.morph_channel = 0
+        self.labels = [0]
 
+        del self.data.f
+        self.data.close
         del self.data
 
         self.images = [x.astype(np.float32) for x in self.images]
@@ -194,7 +194,7 @@ class restainings(Dataset):
     def __getitem__(self, index: int):
         # Grab a random patient
         numsubs = len(self.morphology_images)
-        sub = np.random.randint(numsubs)
+        sub = 0  # np.random.randint(numsubs)
         sel_img = self.morphology_images[sub]
         sel_channels = self.channel_images[sub]
         class_label = self.labels[sub]

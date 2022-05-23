@@ -26,14 +26,12 @@ train_data = {
     "image_channels": unique_image_types,
     "label_key": ["control", "ad"]
 }
-with open(os.path.join("/media/data_cifs/projects/prj_connectomics/", "restaining_train.pkl"), 'wb') as f:
-    pickle.dump(train_data, f, protocol=pickle.HIGHEST_PROTOCOL)
+np.savez(os.path.join("/media/data_cifs/projects/prj_connectomics/", "restaining_train"), **train_data)
 test_data = {
     "images": proc_images_test,
     "labels": proc_labels_test,
     "image_channels": unique_image_types,
     "label_key": ["control", "ad"]
 }
-with open(os.path.join("/media/data_cifs/projects/prj_connectomics/", "restaining_test.pkl"), 'wb') as f:
-    pickle.dump(test_data, f, protocol=pickle.HIGHEST_PROTOCOL)
+np.savez(os.path.join("/media/data_cifs/projects/prj_connectomics/", "restaining_test"), **test_data)
 
