@@ -27,7 +27,147 @@ from src.common.utils import iterate_elements_in_batches, render_images
 from src.pl_modules import losses, resnets
 from src.pl_modules.network_tools import get_network
 
-from pl_bolts.optimizers.lr_scheduler import linear_warmup_decay
+# from pl_bolts.optimizers.lr_scheduler import linear_warmup_decay
+
+
+from typing import Optional
+
+import torch
+
+
+def one_hot(labels: torch.Tensor,
+            num_classes: int,
+            device: Optional[torch.device] = None,
+            dtype: Optional[torch.dtype] = None,
+            eps: Optional[float] = 1e-6) -> torch.Tensor:
+    r"""Converts an integer label 2D tensor to a one-hot 3D tensor.
+
+    Args:
+        labels (torch.Tensor) : tensor with labels of shape :math:`(N, H, W)`,
+                                where N is batch siz. Each value is an integer
+                                representing correct classification.
+        num_classes (int): number of classes in labels.
+        device (Optional[torch.device]): the desired device of returned tensor.
+         Default: if None, uses the current device for the default tensor type
+         (see torch.set_default_tensor_type()). device will be the CPU for CPU
+         tensor types and the current CUDA device for CUDA tensor types.
+        dtype (Optional[torch.dtype]): the desired data type of returned
+         tensor. Default: if None, infers data type from values.
+
+    Returns:
+        torch.Tensor: the labels in one hot tensor.
+
+    Examples::
+        >>> labels = torch.LongTensor([[[0, 1], [2, 0]]])
+        >>> tgm.losses.one_hot(labels, num_classes=3)
+        tensor([[[[1., 0.],
+                  [0., 1.]],
+                 [[0., 1.],
+                  [0., 0.]],
+                 [[0., 0.],
+                  [1., 0.]]]]
+    """
+    if not torch.is_tensor(labels):
+        raise TypeError("Input labels type is not a torch.Tensor. Got {}"
+                        .format(type(labels)))
+    if not len(labels.shape) == 3:
+        raise ValueError("Invalid depth shape, we expect BxHxW. Got: {}"
+                         .format(labels.shape))
+    if not labels.dtype == torch.int64:
+        raise ValueError(
+            "labels must be of the same dtype torch.int64. Got: {}" .format(
+                labels.dtype))
+    if num_classes < 1:
+        raise ValueError("The number of classes must be bigger than one."
+                         " Got: {}".format(num_classes))
+    batch_size, height, width = labels.shape
+    one_hot = torch.zeros(batch_size, num_classes, height, width,
+                          device=device, dtype=dtype)
+    return one_hot.scatter_(1, labels.unsqueeze(1), 1.0) + eps
+
+
+
+class DiceLoss(nn.Module):
+    r"""Criterion that computes Sørensen-Dice Coefficient loss.
+
+    According to [1], we compute the Sørensen-Dice Coefficient as follows:
+
+    .. math::
+
+        \text{Dice}(x, class) = \frac{2 |X| \cap |Y|}{|X| + |Y|}
+
+    where:
+       - :math:`X` expects to be the scores of each class.
+       - :math:`Y` expects to be the one-hot tensor with the class labels.
+
+    the loss, is finally computed as:
+
+    .. math::
+
+        \text{loss}(x, class) = 1 - \text{Dice}(x, class)
+
+    [1] https://en.wikipedia.org/wiki/S%C3%B8rensen%E2%80%93Dice_coefficient
+
+    Shape:
+        - Input: :math:`(N, C, H, W)` where C = number of classes.
+        - Target: :math:`(N, H, W)` where each value is
+          :math:`0 ≤ targets[i] ≤ C−1`.
+
+    Examples:
+        >>> N = 5  # num_classes
+        >>> loss = tgm.losses.DiceLoss()
+        >>> input = torch.randn(1, N, 3, 5, requires_grad=True)
+        >>> target = torch.empty(1, 3, 5, dtype=torch.long).random_(N)
+        >>> output = loss(input, target)
+        >>> output.backward()
+    """
+
+    def __init__(self) -> None:
+        super(DiceLoss, self).__init__()
+        self.eps: float = 1e-6
+
+    def forward(
+            self,
+            input: torch.Tensor,
+            target: torch.Tensor) -> torch.Tensor:
+        if not torch.is_tensor(input):
+            raise TypeError("Input type is not a torch.Tensor. Got {}"
+                            .format(type(input)))
+        if not len(input.shape) == 4:
+            raise ValueError("Invalid input shape, we expect BxNxHxW. Got: {}"
+                             .format(input.shape))
+        if not input.shape[-2:] == target.shape[-2:]:
+            raise ValueError("input and target shapes must be the same. Got: {}"
+                             .format(input.shape, input.shape))
+        if not input.device == target.device:
+            raise ValueError(
+                "input and target must be in the same device. Got: {}" .format(
+                    input.device, target.device))
+        # compute softmax over the classes axis
+        input_soft = F.softmax(input, dim=1)
+
+        # create the labels one hot tensor
+        target_one_hot = one_hot(target, num_classes=input.shape[1],
+                                 device=input.device, dtype=input.dtype)
+
+        # compute the actual dice score
+        dims = (1, 2, 3)
+        intersection = torch.sum(input_soft * target_one_hot, dims)
+        cardinality = torch.sum(input_soft + target_one_hot, dims)
+
+        dice_score = 2. * intersection / (cardinality + self.eps)
+        return torch.mean(1. - dice_score)
+
+
+def dice_loss(
+        input: torch.Tensor,
+        target: torch.Tensor) -> torch.Tensor:
+    r"""Function that computes Sørensen-Dice Coefficient loss.
+
+    See :class:`~torchgeometry.losses.DiceLoss` for details.
+    """
+    return DiceLoss()(input, target)
+
 
 
 class MyModel(pl.LightningModule):
@@ -70,11 +210,7 @@ class MyModel(pl.LightningModule):
         return self.net(x)
 
     def step(self, x, y_class, y_channels, filename, class_weight=1.) -> Dict[str, torch.Tensor]:
-        if self.self_supervised:
-            raise NotImplementedError
-            z1, z2 = self.shared_step(x)
-            loss = self.loss(z1, z2)
-        else:
+        if 1:  # self.self_supervised:
             class_pred, p0, p1, p2 = self(x)
             # class_pred = class_pred.squeeze(-1).squeeze(-1)
             # print(class_pred.shape, channel_preds.shape, y_class.shape, y_channels.shape)
@@ -86,9 +222,15 @@ class MyModel(pl.LightningModule):
             if p0 is None:
                 cl0, cl1, cl2, channel_loss = None, None, None, None
             else:
+                # Do multiple scales to help with mismatches
                 cl0 = nn.CrossEntropyLoss(reduction="none")(p0, y_channels[:, 0].long()).mean()
-                channel_loss = cl0
-                loss = cl0
+                # cl0_1 = nn.CrossEntropyLoss(reduction="none")(F.interpolate(p0, [240, 240]), F.interpolate(y_channels[:, [0]], [240, 240], mode="nearest").squeeze(1).long()).mean()
+                # cl0_2 = nn.CrossEntropyLoss(reduction="none")(F.interpolate(p0, [120, 120]), F.interpolate(y_channels[:, [0]], [120, 120], mode="nearest").squeeze(1).long()).mean()
+                # cl0_3 = nn.CrossEntropyLoss(reduction="none")(F.interpolate(p0, [60, 60]), F.interpolate(y_channels[:, [0]], [60, 60], mode="nearest").squeeze(1).long()).mean()
+
+                # cl0 = dice_loss(p0, y_channels[:, 0].long())
+                channel_loss = cl0  #  + cl0_1 + cl0_2 + cl0_3
+                loss = channel_loss  # cl0
         return {
             "channel_logits_0": p0,
             "channel_loss": channel_loss,
@@ -105,6 +247,7 @@ class MyModel(pl.LightningModule):
         else:
             cl0 = nn.CrossEntropyLoss(reduction="none")(p0, y_channels[:, 0].long()).mean()
 
+            cl0 = cl0.detach()
             channel_loss = cl0
             loss = cl0
             p0 = p0.detach()  # .cpu()
@@ -348,7 +491,7 @@ class MyModel(pl.LightningModule):
             return opt
 
         # Handle schedulers if requested
-        if torch.optim.lr_scheduler.warmup_steps:
+        if 0:  # torch.optim.lr_scheduler.warmup_steps:
             # Right now this is specific to SimCLR
             lr_scheduler = {
                 "scheduler": torch.optim.lr_scheduler.LambdaLR(

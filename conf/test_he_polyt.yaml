@@ -33,9 +33,9 @@ data:
       test: 16
 
     batch_size:
-      train: 4  # 16  # 30  # 30  #  12  # 240  # 128
-      val: 4  # 16  # 20  # 240  # 128
-      test: 4  # 16   # 20  # 128
+      train: 9  # 16  # 30  # 30  #  12  # 240  # 128
+      val: 9  # 16  # 20  # 240  # 128
+      test: 9  # 16   # 20  # 128
 hydra:
   run:
     dir: ./experiments/${now:%Y-%m-%d}/${now:%H-%M-%S}
@@ -104,15 +104,15 @@ train:
 
   # training
   eval_only: False
-  ckpt: False  # load pretrained weights
+  ckpt: experiments/2022-05-27/09-14-39/experiments/2022-05-27/09-14-39/restainings/b7s1nh76/checkpoints/epoch=1367-step=194256.ckpt  # load pretrained weights
   pl_trainer:
     fast_dev_run: False # Enable this for debug purposes
-    gpus: 1  # 4
+    gpus: 1  # 1  # 4
     precision: 32
     max_steps: 2000000
     # accumulate_grad_batches: 8
     # num_sanity_val_steps: 2
-    gradient_clip_val: 10000000.0  # 10.
+    gradient_clip_val: 100000000.
 
   monitor_metric: 'val_loss'
   monitor_metric_mode: 'min'

@@ -2,4 +2,5 @@ experiments/*
 data/
 __pycache__
 *.pyc
+*.npy
 

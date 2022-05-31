@@ -72,7 +72,7 @@ class ResUnet_restaining(nn.Module):
         self.upsample_0_3 = Upsample(filters[1], filters[1], 2, 2)
         self.up_residual_conv_0_3 = ResidualConv(filters[1] + filters[0], filters[0], 1, 1)
 
-        self.output_layer_0 = nn.Conv2d(filters[0], 2, 1, 1)
+        self.output_layer_0 = nn.Conv2d(filters[0], 256, 1, 1)
 
     def forward(self, x):
         # Encode
@@ -99,6 +99,7 @@ class ResUnet_restaining(nn.Module):
         x9_0 = torch.cat([x8_0, x1], dim=1)
         x10_0 = self.up_residual_conv_0_3(x9_0)
         output_0 = self.output_layer_0(x10_0)
+        # output_0 = torch.sigmoid(output_0)
 
         # # Combine preds
         # channel_preds = torch.stack((output_0, output_1, output_2), 2)  # Channel cat

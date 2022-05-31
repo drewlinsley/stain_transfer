@@ -157,6 +157,7 @@ def run(cfg: DictConfig) -> None:
         deterministic=cfg.train.deterministic,
         val_check_interval=cfg.logging.val_check_interval,
         log_every_n_steps=10,
+        limit_val_batches=5,
         #auto_select_gpus=True,
         # benchmark=True,
         accelerator="dp",  # 'ddp',  # "ddp" if args.gpus > 1 else None,

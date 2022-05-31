@@ -13,8 +13,8 @@ from src.pl_data import dataset
 from torch import default_generator, Generator
 from torch.utils.data import DataLoader, Dataset, random_split, Subset
 from itertools import accumulate as _accumulate
-from pl_bolts.models.self_supervised.simclr.transforms import (
-    SimCLREvalDataTransform, SimCLRTrainDataTransform)
+# from pl_bolts.models.self_supervised.simclr.transforms import (
+#     SimCLREvalDataTransform, SimCLRTrainDataTransform)
 
 
 from typing import (
@@ -44,8 +44,18 @@ TRANSFORM_RECIPES = {
         "train": transforms.Compose([
                 # transforms.RandomRotation(degrees=[0, 90, 180, 270]),
                 transforms.ToTensor(),
-                transforms.RandomHorizontalFlip(),
-                transforms.RandomVerticalFlip(),
+            ]),
+        "val": transforms.Compose([
+                transforms.ToTensor(),
+            ]),
+        "test": transforms.Compose([
+                transforms.ToTensor(),
+            ]),
+    },
+    "restainings_polyt_he": {
+        "train": transforms.Compose([
+                # transforms.RandomRotation(degrees=[0, 90, 180, 270]),
+                transforms.ToTensor(),
             ]),
         "val": transforms.Compose([
                 transforms.ToTensor(),
@@ -108,23 +118,6 @@ TRANSFORM_RECIPES = {
                 transforms.ToTensor(),
                 normalizations.NuclearGedi_normalization(),
             ]),
-    },
-    "SIMCLR_COR14": {
-        "train": SimCLRTrainDataTransform(
-            input_height=224,
-            gaussian_blur=True,
-            jitter_strength=1.,
-            normalize=normalizations.COR14_normalization),  # noqa
-        "val": SimCLREvalDataTransform(
-            input_height=224,
-            gaussian_blur=False,
-            jitter_strength=0.,
-            normalize=normalizations.COR14_normalization),  # noqa
-        "test": SimCLREvalDataTransform(
-            input_height=224,
-            gaussian_blur=False,
-            jitter_strength=0.,
-            normalize=normalizations.COR14_normalization),  # noqa
     },
 }
 
