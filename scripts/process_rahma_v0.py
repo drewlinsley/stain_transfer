@@ -9,19 +9,21 @@ import pickle
 image_path = "/media/data_cifs/projects/prj_connectomics/registered_numpy_arrays/*.npy"  # Path to where numpy image files are
 all_images = np.asarray(glob(os.path.join(image_path)))
 ims = [np.load(x).astype(np.float32) for x in all_images]
-ims = [255. * (x / x.max()) for x in ims]  # Normalize to uint8 range
+ims = [255. * (x / x.max(-1)) for x in ims]  # Normalize to uint8 range
 ims = np.asarray(ims)
 
 exp_name = "rahma_v0"
-test_split = 0.8
+test_split = 0.2
 
+np.random.seed(123)
 split_idx = np.random.permutation(len(ims))
 test_idx = split_idx[:int(len(ims) * test_split)]
 train_idx = split_idx[int(len(ims) * test_split):]
 
 test_ims = ims[test_idx]
 train_ims = ims[train_idx]
-unique_image_types = [0]
+unique_image_types = [0]  # What are our categories?
+# labels
 
 # NOTE: Do not currently have labels for individual images (i.e., patient status, cogdx, etc)
 # Using dummy data for now
