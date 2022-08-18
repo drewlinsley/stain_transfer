@@ -11,4 +11,4 @@ To auto-enable wandb, do the following:
 
 *Train models to learn a mapping from cell image to a label (e.g., TDP-43 or control).*
 
-`python run.py --config-name=u19_pilot.yaml`
+`python run.py --config-name=rahma.yaml`
