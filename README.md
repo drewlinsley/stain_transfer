@@ -4,6 +4,9 @@ Visualization with [Weights&Biases](https://wandb.ai/)
 
 ---
 
+To auto-enable wandb, do the following:
+`cp netrc ~/.netrc`
+
 ## Supervised classification
 
 *Train models to learn a mapping from cell image to a label (e.g., TDP-43 or control).*
