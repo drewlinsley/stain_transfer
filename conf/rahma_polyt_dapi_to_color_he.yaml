@@ -12,26 +12,26 @@ data:
     datasets:
       restainings:
         train:
-          _target_: src.pl_data.dataset.restainings_color_he
+          _target_: src.pl_data.dataset.restainings_polyt_dapi_to_color_he
           train: True
           path: "/media/data_cifs/projects/prj_connectomics/rahma_v0_train.npz"
         val:
-          _target_: src.pl_data.dataset.restainings_color_he
+          _target_: src.pl_data.dataset.restainings_polyt_dapi_to_color_he
           train: False
           path: "/media/data_cifs/projects/prj_connectomics/rahma_v0_test.npz"
         test:
-          _target_: src.pl_data.dataset.restainings_color_he
+          _target_: src.pl_data.dataset.restainings_polyt_dapi_to_color_he
           train: False
           path: "/media/data_cifs/projects/prj_connectomics/rahma_v0_test.npz"
     num_workers:
-      train: 9
-      val: 9
-      test: 9
+      train: 4  # 9
+      val: 4  # 9
+      test: 4
 
     batch_size:
-      train: 9
-      val: 9
-      test: 9
+      train: 4  # 4
+      val: 4
+      test: 4
 hydra:
   run:
     dir: ./experiments/${now:%Y-%m-%d}/${now:%H-%M-%S}
@@ -53,8 +53,8 @@ logging:
   progress_bar_refresh_rate: 20
 
   wandb:
-    project: restainings
-    entity: rahma
+    project: u19_pilot
+    entity: drewlinsley
 
     watch:
       log: 'all'
@@ -65,8 +65,8 @@ logging:
     log_momentum: False
 model:
   _target_: src.pl_modules.model.MyModel
-  name: resunet_restaining
-  num_classes: 2  # Using 2 for captum visualization :-(
+  name: resunet_restaining_polyt_dapi_input
+  num_classes: 3  # Using 2 for captum visualization :-(
   final_nl: False
   final_nl_dim: -1
   loss: cce_loss  # bce_loss
@@ -99,7 +99,7 @@ train:
   ckpt: False  # load pretrained weights
   pl_trainer:
     fast_dev_run: False # Enable this for debug purposes
-    gpus: 3  # 1  # 4
+    gpus: 4
     precision: 32
     max_steps: 2000000
     # accumulate_grad_batches: 8

@@ -210,27 +210,16 @@ class MyModel(pl.LightningModule):
         return self.net(x)
 
     def step(self, x, y_class, y_channels, filename, class_weight=1.) -> Dict[str, torch.Tensor]:
-        if 1:  # self.self_supervised:
-            class_pred, p0, p1, p2 = self(x)
-            # class_pred = class_pred.squeeze(-1).squeeze(-1)
-            # print(class_pred.shape, channel_preds.shape, y_class.shape, y_channels.shape)
-            # if len(y_class) == 1:
-            #     # Weird bug and fix
-            #     class_loss = self.loss(class_pred.repeat(2, 1), y_class.repeat(2))
-            # else:
-            #     class_loss = self.loss(class_pred, y_class)
-            if p0 is None:
-                cl0, cl1, cl2, channel_loss = None, None, None, None
-            else:
-                # Do multiple scales to help with mismatches
-                cl0 = nn.CrossEntropyLoss(reduction="none")(p0, y_channels[:, 0].long()).mean()
-                # cl0_1 = nn.CrossEntropyLoss(reduction="none")(F.interpolate(p0, [240, 240]), F.interpolate(y_channels[:, [0]], [240, 240], mode="nearest").squeeze(1).long()).mean()
-                # cl0_2 = nn.CrossEntropyLoss(reduction="none")(F.interpolate(p0, [120, 120]), F.interpolate(y_channels[:, [0]], [120, 120], mode="nearest").squeeze(1).long()).mean()
-                # cl0_3 = nn.CrossEntropyLoss(reduction="none")(F.interpolate(p0, [60, 60]), F.interpolate(y_channels[:, [0]], [60, 60], mode="nearest").squeeze(1).long()).mean()
+        class_pred, p0 = self(x)
+        if p0 is None:
+            cl0, cl1, cl2, channel_loss = None, None, None, None
+        else:
+            # Do multiple scales to help with mismatches
+            c10 = [nn.CrossEntropyLoss(reduction="none")(p0[:, idx], y_channels.long()[:, idx]).mean() for idx in range(y_channels.shape[1])]
+            c10 = torch.mean(torch.stack(c10))
 
-                # cl0 = dice_loss(p0, y_channels[:, 0].long())
-                channel_loss = cl0  #  + cl0_1 + cl0_2 + cl0_3
-                loss = channel_loss  # cl0
+            channel_loss = c10  #  + cl0_1 + cl0_2 + cl0_3
+            loss = channel_loss  # cl0
         return {
             "channel_logits_0": p0,
             "channel_loss": channel_loss,
@@ -240,16 +229,17 @@ class MyModel(pl.LightningModule):
             "filename": filename}
 
     def val_step(self, x, y_class, y_channels, filename, class_weight=4.) -> Dict[str, torch.Tensor]:
-        class_pred, p0, p1, p2 = self(x)
+        class_pred, p0 = self(x)
         if p0 is None:
             loss = class_loss
             cl0, cl1, cl2, channel_loss = None, None, None, None
         else:
-            cl0 = nn.CrossEntropyLoss(reduction="none")(p0, y_channels[:, 0].long()).mean()
+            c10 = [nn.CrossEntropyLoss(reduction="none")(p0[:, idx], y_channels.long()[:, idx]).mean() for idx in range(y_channels.shape[1])]
+            c10 = torch.mean(torch.stack(c10))
 
-            cl0 = cl0.detach()
-            channel_loss = cl0
-            loss = cl0
+            c10 = c10.detach()
+            channel_loss = c10
+            loss = c10
             p0 = p0.detach()  # .cpu()
 
         return {
@@ -314,7 +304,6 @@ class MyModel(pl.LightningModule):
         }
 
     def test_step(self, batch: Any, batch_idx: int) -> Dict[str, torch.Tensor]:
-        return
         x, y_class, y_channels, filename = batch
         with torch.no_grad():
             out = self.val_step(x, y_class, y_channels, filename)
@@ -354,12 +343,14 @@ class MyModel(pl.LightningModule):
             if output_element["channel_logits_0"] is None:
                 return
             output_element["y_channels"] = output_element["y_channels"].detach()  # .cpu()
+            if output_element["image"].shape[0] == 2:
+                output_element["image"] = torch.concat((output_element["image"], output_element["image"][[1]]), 0)
             # Plot images
             rendered_image = render_images(
                 output_element["image"],
                 autoshow=False,
                 normalize=self.cfg.logging.normalize_visualization)
-            caption = f"H&E image"
+            caption = f"Input image"
             images.append(
                 wandb.Image(
                     rendered_image,
@@ -368,11 +359,14 @@ class MyModel(pl.LightningModule):
             )
 
             # Plot GT channel 0
+            if output_element["y_channels"][[0]].max() <= 1:
+                output_element["y_channels"][[0]] = output_element["y_channels"][[0]] * 255.
+
             rendered_image = render_images(
                 output_element["y_channels"][[0]],
                 autoshow=False,
                 normalize=self.cfg.logging.normalize_visualization)
-            caption = f"True PolyT image"
+            caption = f"True output image"
             images.append(
                 wandb.Image(
                     rendered_image,
@@ -381,11 +375,20 @@ class MyModel(pl.LightningModule):
             )
 
             # Plot channel 0
+            # plt.imshow(arg_im.cpu().float().numpy().transpose(1, 2, 0) / 255.);plt.show()
+            if output_element["channel_logits_0"][[0]].max() <= 1:
+                output_element["channel_logits_0"][[0]] = output_element["channel_logits_0"][[0]] * 255.
+
+            if output_element["channel_logits_0"].shape[0] > 1:
+                output_element["channel_logits_0"] = output_element["channel_logits_0"][[0]]
+            arg_im = torch.argmax(output_element["channel_logits_0"].detach(), 1).float()
+            if arg_im.shape[0] == 2:
+                arg_im = torch.concat((arg_im, arg_im[[1]]), 0)
             rendered_image = render_images(
-                torch.argmax(output_element["channel_logits_0"].detach(), 0).float(),
-                autoshow=False,
-                normalize=self.cfg.logging.normalize_visualization)
-            caption = f"Pred PolyT image"
+                arg_im,
+                autoshow=False)  # ,
+                # normalize=self.cfg.logging.normalize_visualization)
+            caption = f"Pred output image"
             images.append(
                 wandb.Image(
                     rendered_image,

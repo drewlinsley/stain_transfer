@@ -6,13 +6,14 @@ from tqdm import tqdm
 import pickle
 
 
-image_path = "/media/data_cifs/projects/prj_connectomics/U19_update_9158123_DLPFC_slice4/*.npy"
+image_path = "/media/data_cifs/projects/prj_connectomics/seqfish/*.npy"
 all_images = np.asarray(glob(os.path.join(image_path)))
 ims = [np.load(x).astype(np.float32) for x in all_images]
-ims = [255. * (x / x.max((0, 1), keepdims=True)) for x in ims]  # Normalize to uint8 range
+
+ims = [255. * (x / x.max((1, 2), keepdims=True)) for x in ims]  # Normalize to uint8 range
 ims = np.asarray(ims)
 
-exp_name = "rahma_v0"
+exp_name = "seqfish_v0"
 test_split = 0.1
 
 np.random.seed(123)
