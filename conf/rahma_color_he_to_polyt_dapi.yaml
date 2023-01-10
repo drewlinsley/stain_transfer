@@ -24,14 +24,14 @@ data:
           train: False
           path: "/media/data_cifs/projects/prj_connectomics/rahma_v0_test.npz"
     num_workers:
-      train: 4
-      val: 4
-      test: 4
+      train: 3
+      val: 3
+      test: 3
 
     batch_size:
-      train: 4
-      val: 4
-      test: 4
+      train: 3
+      val: 3
+      test: 3
 hydra:
   run:
     dir: ./experiments/${now:%Y-%m-%d}/${now:%H-%M-%S}
@@ -99,7 +99,7 @@ train:
   ckpt: False  # load pretrained weights
   pl_trainer:
     fast_dev_run: False # Enable this for debug purposes
-    gpus: 4  # 1  # 4
+    gpus: 3  # 1  # 4
     precision: 32
     max_steps: 2000000
     # accumulate_grad_batches: 8

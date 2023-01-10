@@ -201,7 +201,7 @@ class MyModel(pl.LightningModule):
 
         self.net = get_network(self.name)  # resnets.resunet()  # get_network(self.name)
 
-        metric = torchmetrics.Accuracy()
+        metric = torchmetrics.Accuracy(task="multiclass", num_classes=num_classes)
         self.train_channel_accuracy = metric.clone().cuda()
         self.val_channel_accuracy = metric.clone().cuda()
         self.test_channel_accuracy = metric.clone().cuda()
