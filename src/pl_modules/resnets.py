@@ -53,12 +53,89 @@ def resunet_restaining_seqfish_input(in_channel=2, out_channel=43):
     return model
 
 
+def resunet_restaining_celltype_input(in_channel=2, out_channel=3):
+    # assert num_classes is not None, "You must pass the number of classes to your model."
+    model = ResUnet_celltype(in_channel=in_channel, out_channel=out_channel)
+    return model
+
+
 def resunet_control(in_channel=1):
     # assert num_classes is not None, "You must pass the number of classes to your model."
     model = ResUnet(in_channel=in_channel, control=True)  # , num_classes=num_classes)
     # model.conv1 = nn.Conv2d(3, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
     # model.maxpool = nn.Identity()
     return model
+
+
+
+class ResUnet_celltype(nn.Module):
+    def __init__(self, in_channel=2, out_channel=3, default_channels=3, filters=[64, 128, 256, 384], control=False):
+        super(ResUnet_celltype, self).__init__()
+        self.control = control
+        self.out_channel = out_channel
+        self.default_channels = default_channels
+
+        self.input_layer = nn.Sequential(
+            nn.Conv2d(in_channel, filters[0], kernel_size=3, padding=1),
+            nn.BatchNorm2d(filters[0]),
+            nn.ReLU(),
+            nn.Conv2d(filters[0], filters[0], kernel_size=3, padding=1),
+        )
+        self.input_skip = nn.Sequential(
+            nn.Conv2d(in_channel, filters[0], kernel_size=3, padding=1)
+        )
+
+        self.residual_conv_1 = ResidualConv(filters[0], filters[1], 2, 1)
+        self.residual_conv_2 = ResidualConv(filters[1], filters[2], 2, 1)
+
+        self.bridge = ResidualConv(filters[2], filters[3], 2, 1)
+
+        # AD classifier
+        # self.classifier = nn.Linear(filters[3], 2)
+        if control:
+            return
+
+        # Ch_0
+        self.upsample_0_1 = Upsample(filters[3], filters[3], 2, 2)
+        self.up_residual_conv_0_1 = ResidualConv(filters[3] + filters[2], filters[2], 1, 1)
+
+        self.upsample_0_2 = Upsample(filters[2], filters[2], 2, 2)
+        self.up_residual_conv_0_2 = ResidualConv(filters[2] + filters[1], filters[1], 1, 1)
+
+        self.upsample_0_3 = Upsample(filters[1], filters[1], 2, 2)
+        self.up_residual_conv_0_3 = ResidualConv(filters[1] + filters[0], filters[0], 1, 1)
+
+        self.output_layer_0 = nn.Conv2d(filters[0], self.default_channels, 1, 1)
+
+    def forward(self, x):
+        # Encode
+        x1 = self.input_layer(x) + self.input_skip(x)
+        x2 = self.residual_conv_1(x1)
+        x3 = self.residual_conv_2(x2)
+        # Bridge
+        x4 = self.bridge(x3)
+
+        # Classifer
+        # mean_vec = x4.mean(dim=(2, 3))
+        # ad_pred = self.classifier(mean_vec)
+        if self.control:
+            return ad_pred, None, None, None
+
+        # Decode 0
+        x4_0 = self.upsample_0_1(x4)
+        x5_0 = torch.cat([x4_0, x3], dim=1)
+        x6_0 = self.up_residual_conv_0_1(x5_0)
+        x6_0 = self.upsample_0_2(x6_0)
+        x7_0 = torch.cat([x6_0, x2], dim=1)
+        x8_0 = self.up_residual_conv_0_2(x7_0)
+        x8_0 = self.upsample_0_3(x8_0)
+        x9_0 = torch.cat([x8_0, x1], dim=1)
+        x10_0 = self.up_residual_conv_0_3(x9_0)
+        output_0 = self.output_layer_0(x10_0)
+
+        # Return outputs
+        return None, output_0
+
 
 
 class ResUnet_seqfish(nn.Module):

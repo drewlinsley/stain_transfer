@@ -105,10 +105,19 @@ stride_size = 340
 diff = patch_size - stride_size
 half_diff = diff // 2
 
+
+# -rwxrwxrwx 1 cis-storage cis-storage 402653312 Jan 10 13:06 /media/data_cifs/projects/prj_connectomics/2022_1204_ad_20223617_pos87.npy
+# (selfies) dlinsley@serrep8:~/stain_transfer$ ls -lrt /media/data_cifs/projects/prj_connectomics/2022_1209_control_50400835_pos87.npy
+# -rwxrwxrwx 1 cis-storage cis-storage 402653312 Jan 10 13:07 /media/data_cifs/projects/prj_connectomics/2022_1209_control_50400835_pos87.npy
+
 image = "v2_transformed_image_polyt_he.npy"
-image = np.load(image).astype(np.float32)[..., :2]
-image = image / image.max((0, 1), keepdims=True)
-image = image.transpose((2, 0, 1))
+image = "/media/data_cifs/projects/prj_connectomics/2022_1204_ad_20223617_pos87.npy"
+image = "/media/data_cifs/projects/prj_connectomics/2022_1209_control_50400835_pos87.npy"
+image_data = np.load(image).astype(np.float32)
+image = image_data[:2]
+labels = image_data[2:]
+image = image / image.max((1, 2), keepdims=True)
+# image = image.transpose((2, 0, 1))
 
 
 ckpt = "experiments/backup-update-submission/22-08-40/experiments/2022-10-18/22-08-40/u19_pilot/peit9ut5/checkpoints/epoch=2804-step=95370.ckpt"
@@ -117,7 +126,22 @@ net = get_network("resunet_restaining_seqfish_input")
 net = weights_update(model=net, checkpoint=torch.load(ckpt))
 net = net.to("cuda")
 
-import pdb;pdb.set_trace()
 net.eval()
-output = net(image)
+# image = image[..., :1000, :1000]
+with torch.no_grad():
+    output = net(torch.tensor(image).float().cuda()[None])
+import pdb;pdb.set_trace()
+ch=18;plt.subplot(121);plt.imshow(output[1][0, ch, 1].cpu() > 0);plt.subplot(122);plt.imshow(labels[ch]);plt.show()
+len(output)
+output = output.detach().cpu()
+fig = plt.figure()
+plt.subplot(211)
+plt.imshow(image[0])
+plt.subplot(212)
+plt.imshow(image[1])
+plt.subbplot(213)
+plt.imshow(output[0])
+plt.subplot(214)
+plt.imshow(output[1])
+plt.show()
 

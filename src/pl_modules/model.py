@@ -164,8 +164,7 @@ def dice_loss(
         target: torch.Tensor) -> torch.Tensor:
     r"""Function that computes Sørensen-Dice Coefficient loss.
 
-    See :class:`~torchgeometry.losses.DiceLoss` for details.
-    """
+    See :class:`~torchgeometry.losses.DiceLoss` for details.  """
     return DiceLoss()(input, target)
 
 
@@ -213,9 +212,13 @@ class MyModel(pl.LightningModule):
         class_pred, p0 = self(x)
         if p0 is None:
             cl0, cl1, cl2, channel_loss = None, None, None, None
+        elif class_pred is None:
+            c10 = self.loss(p0, y_channels.squeeze(1), x)
+            channel_loss = c10
+            loss = c10
         else:
             # Do multiple scales to help with mismatches
-            c10 = [nn.CrossEntropyLoss(reduction="none")(p0[:, idx], y_channels.long()[:, idx]).mean() for idx in range(y_channels.shape[1])]
+            c10 = [self.loss(p0[:, idx], y_channels.long()[:, idx], x).mean() for idx in range(y_channels.shape[1])]
             c10 = torch.mean(torch.stack(c10))
 
             channel_loss = c10  #  + cl0_1 + cl0_2 + cl0_3
@@ -233,8 +236,13 @@ class MyModel(pl.LightningModule):
         if p0 is None:
             loss = class_loss
             cl0, cl1, cl2, channel_loss = None, None, None, None
+        elif class_pred is None:
+            c10 = self.loss(p0, y_channels.squeeze(1), x)
+            channel_loss = c10
+            loss = c10
+            p0 = p0.detach()
         else:
-            c10 = [nn.CrossEntropyLoss(reduction="none")(p0[:, idx], y_channels.long()[:, idx]).mean() for idx in range(y_channels.shape[1])]
+            c10 = [self.loss(p0[:, idx], y_channels.long()[:, idx], x).mean() for idx in range(y_channels.shape[1])]
             c10 = torch.mean(torch.stack(c10))
 
             c10 = c10.detach()
@@ -332,8 +340,7 @@ class MyModel(pl.LightningModule):
 
     def validation_epoch_end(self, outputs: List[Any]) -> None:
 
-        self.net.classifier
-        integrated_gradients = Saliency(self.net.classifier)
+        # integrated_gradients = Saliency(self.net.classifier)
         # integrated_gradients = LayerIntegratedGradients(self, self.net.classifier)
         images, images_feat_viz = [], []
         batch_size = self.cfg.data.datamodule.batch_size.val
@@ -359,6 +366,9 @@ class MyModel(pl.LightningModule):
             )
 
             # Plot GT channel 0
+            output_element["y_channels"] = output_element["y_channels"].float()
+            if hasattr(self.cfg.logging, "viz_modulate"):
+                output_element["y_channels"]  = output_element["y_channels"] * self.cfg.logging.viz_modulate
             if output_element["y_channels"][[0]].max() <= 1:
                 output_element["y_channels"][[0]] = output_element["y_channels"][[0]] * 255.
 
@@ -376,12 +386,15 @@ class MyModel(pl.LightningModule):
 
             # Plot channel 0
             # plt.imshow(arg_im.cpu().float().numpy().transpose(1, 2, 0) / 255.);plt.show()
-            if output_element["channel_logits_0"][[0]].max() <= 1:
-                output_element["channel_logits_0"][[0]] = output_element["channel_logits_0"][[0]] * 255.
+            # if output_element["channel_logits_0"][[0]].max() <= 1:
+            #     output_element["channel_logits_0"][[0]] = output_element["channel_logits_0"][[0]] * 255.
 
-            if output_element["channel_logits_0"].shape[0] > 1:
-                output_element["channel_logits_0"] = output_element["channel_logits_0"][[0]]
-            arg_im = torch.argmax(output_element["channel_logits_0"].detach(), 1).float()
+            # if output_element["channel_logits_0"].shape[0] > 1:
+            #     output_element["channel_logits_0"] = output_element["channel_logits_0"][[0]]
+            #     # output_element["channel_logits_0"] = torch.argsort(output_element["channel_logits_0"], 0)
+            arg_im = torch.argmax(output_element["channel_logits_0"].detach(), 0).float()
+            if hasattr(self.cfg.logging, "viz_modulate"):
+                arg_im = self.cfg.logging.viz_modulate * arg_im
             if arg_im.shape[0] == 2:
                 arg_im = torch.concat((arg_im, arg_im[[1]]), 0)
             rendered_image = render_images(

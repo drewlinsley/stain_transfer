@@ -322,6 +322,63 @@ class restainings_seqfish(Dataset):
         return morphology_img, class_label, channel_label, sub
 
 
+class restainings_celltype(Dataset):
+    def __init__(
+        self, path: ValueNode, train: bool, cfg: DictConfig, transform, **kwargs
+    ):
+        super().__init__()
+        self.cfg = cfg
+        self.path = path
+        self.train = train
+        self.transform = transform
+        self.crop_size = [1440, 1440]  # [480, 480]  # [224, 224]
+        self.crop_size = [800, 880]  # [480, 480]  # [224, 224]
+
+        # List all the files
+        print("Globbing files for COR14, this may take a while...")
+        # self.data = np.load(self.path)
+
+        self.data = np.load(self.path)  # , allow_pickle=True)
+
+        self.images = self.data["images"]
+        self.labels = [0]
+
+        del self.data.f
+        self.data.close
+        del self.data
+
+        self.images = [x.astype(np.float32) for x in self.images]
+        self.morphology_images, self.channel_images = [], []
+        for im in self.images:
+            # self.morphology_images.append(im[..., 2:])  # H&E
+            # self.channel_images.append(im[..., :2])  # polyT,DAPI
+            self.channel_images.append(im[[2]].astype(int))
+            self.morphology_images.append(im[:2] / 255.)
+        batch_size = 9
+        num_gpus = 3
+        steps = 10
+        self.data_len = len(self.images)  # batch_size * num_gpus * steps  # 12 * 4 * 10  # 0  # len(self.files)
+
+    def __len__(self) -> int:
+        return self.data_len
+
+    def __getitem__(self, index: int):
+        # Grab a random patient
+        numsubs = len(self.morphology_images)
+        sub = np.random.randint(numsubs)
+        sel_img = self.morphology_images[sub]
+        sel_channels = self.channel_images[sub]
+        class_label = self.labels[0]  # [sub]
+        imshape = sel_img.shape[1:]
+
+        # Now a random crop
+        h = np.random.randint(low=0, high=imshape[0] - self.crop_size[0])
+        w = np.random.randint(low=0, high=imshape[1] - self.crop_size[1])
+        morphology_img = sel_img[:, h: h + self.crop_size[0], w: w + self.crop_size[1]]
+        channel_label = sel_channels[:, h: h + self.crop_size[0], w: w + self.crop_size[1]]
+        return morphology_img, class_label, channel_label, sub
+
+
 class restainings_polyt_dapi_to_color_he(Dataset):
     def __init__(
         self, path: ValueNode, train: bool, cfg: DictConfig, transform, **kwargs

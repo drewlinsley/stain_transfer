@@ -5,21 +5,42 @@ from torch.nn import functional as F
 
 
 
-def nll_loss(yhat, y):
+def nll_loss(yhat, y, x):
     """Wrapper for the normal nll loss."""
     return F.nll_loss(yhat, y)
 
 
-def bce_loss(yhat, y):
+def bce_loss(yhat, y, x):
     """Wrapper for the normal nll loss."""
     return nn.BCELoss()(yhat.float(), y.float())
 
 
-def cce_loss(yhat, y):
+def cce_loss(yhat, y, x):
     """Wrapper for the normal nll loss."""
-    y = y.long().squeeze()
-    yhat = yhat.float()
     return nn.CrossEntropyLoss(reduction="none")(yhat, y)
+
+
+def celltype_cce_loss(yhat, y, x, poly_channel=0, dapi_channel=1):
+    """Wrapper nll loss with a mask on the dapi channel.
+
+    Only compute loss at locations where you have DAPI + Label."""
+    weight = [0.10908450970083867, 9.344753437619014, 0, 9.516677251173297, 9.800194298602854, 16.04023407840591, 18.326204034372797, 13.377497741641083, 25.548119675798734, 31.184488811544636, 3.9093832611950297]
+    # weight = [0.2727112742520967, 33.443744354102705, 9.773458152987574, 4.977617082171507]
+    # weight = [0.34472822905947637, 44.59165913880361, 13.031277537316766]
+    weight = [0.34401008173185593, 61.08734678124265, 13.031277537316766]
+    weight = torch.tensor(weight).float().to(yhat.device)
+    dapi = x[:, dapi_channel]
+    # poly = x[:, poly_channel]
+    dapi_fg = dapi > 0.065  # 0.070
+    dapi_bg = dapi < 0.019
+    fg_mask = torch.logical_and(dapi_fg, y > 0)
+    bg_mask = torch.logical_and(dapi_bg, y == 0)
+    mask = torch.logical_or(fg_mask, bg_mask)
+    # from matplotlib import pyplot as plt;plt.subplot(131);plt.imshow(dapi.squeeze().cpu().detach());plt.subplot(122);plt.imshow(mask.squeeze().detach().cpu());plt.show()
+    loss = nn.CrossEntropyLoss(reduction="none")(yhat, y)
+    # loss = nn.CrossEntropyLoss(reduction="none", weight=weight)(yhat, y)
+    loss = loss * mask.float()
+    return loss
 
 
 def nt_xent_loss(out_1, out_2, temperature=0.1, eps=1e-6):

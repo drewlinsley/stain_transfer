@@ -54,7 +54,7 @@ def build_callbacks(cfg: DictConfig) -> List[Callback]:
             )
         )
 
-    if "model_checkpoints" in cfg.train.model_checkpoints:
+    if "model_checkpoints" in cfg.train:
         hydra.utils.log.info(f"Adding callback <ModelCheckpoint>")
         callbacks.append(
             ModelCheckpoint(
@@ -153,7 +153,7 @@ def run(cfg: DictConfig) -> None:
     trainer = pl.Trainer(
         default_root_dir=hydra_dir,
         logger=wandb_logger,
-        #callbacks=callbacks,
+        # callbacks=callbacks,
         deterministic=cfg.train.deterministic,
         val_check_interval=cfg.logging.val_check_interval,
         log_every_n_steps=10,

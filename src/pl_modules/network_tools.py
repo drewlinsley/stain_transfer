@@ -15,6 +15,8 @@ def get_network(name):
         net = resnets.resunet_restaining_polyt_dapi_input()
     elif name == "resunet_restaining_seqfish_input":
         net = resnets.resunet_restaining_seqfish_input()
+    elif name == "resunet_restaining_celltype_input":
+        net = resnets.resunet_restaining_celltype_input()
     elif name == "resunet_restaining_color_he_input":
         net = resnets.resunet_restaining_color_he_input()
     else:
